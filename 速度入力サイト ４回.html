@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>タイピング速度4回目</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; margin: 0; background-color: #f4f6f9; }
+        #header { display: flex; justify-content: center; align-items: center; gap: 20px; padding: 15px; background-color: #2c3e50; color: white; font-size: 24px; font-weight: bold; }
+        button { padding: 10px 20px; font-size: 18px; cursor: pointer; background-color: #e74c3c; color: white; border: none; border-radius: 5px; }
+        button:hover { background-color: #c0392b; }
+        button:disabled { background-color: #7f8c8d; cursor: not-allowed; }
+        #main { display: flex; flex: 1; padding: 20px; gap: 20px; justify-content: center; }
+        .pane { display: flex; flex-direction: column; align-items: center; width: 50%; max-width: 600px; }
+        .pane-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; color: #34495e; }
+        
+        textarea {
+            font-family: 'MS Gothic', 'Hiragino Kaku Gothic ProN', monospace;
+            font-size: 16px; padding: 10px; resize: none; border: 2px solid #bdc3c7; border-radius: 5px; outline: none; line-height: 1.5; box-sizing: border-box;
+        }
+        #question-area { background-color: #ffffff; color: #333; border-color: #95a5a6; }
+        #input-area:focus { border-color: #3498db; }
+        #input-area:disabled { background-color: #ecf0f1; }
+        
+        #result-box { display: none; margin-top: 20px; padding: 20px; background-color: #fff; border: 2px solid #27ae60; border-radius: 8px; text-align: center; width: 100%; box-sizing: border-box; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .result-title { font-size: 20px; color: #27ae60; font-weight: bold; margin-bottom: 15px; }
+        .result-detail { font-size: 18px; line-height: 1.8; text-align: left; display: inline-block;}
+        .highlight { font-weight: bold; color: #e74c3c; font-size: 22px; }
+        .pass { color: #27ae60; font-weight: bold; }
+        .fail { color: #e74c3c; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="header">
+        <span>残り時間: <span id="timer">10:00</span></span>
+        <button id="start-btn">スタート</button>
+    </div>
+
+    <div id="main">
+        <div class="pane">
+            <div class="pane-title">【 問題文 】</div>
+            <textarea id="question-area" cols="60" rows="30" readonly></textarea>
+        </div>
+
+        <div class="pane">
+            <div class="pane-title">【 入力スペース 】</div>
+            <textarea id="input-area" cols="60" rows="30" placeholder="スタートボタンを押して入力を開始..." disabled></textarea>
+            
+            <div id="result-box">
+                <div class="result-title">タイムアップ！ 審査結果</div>
+                <div class="result-detail" id="result-text"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const TIME_LIMIT = 10 * 60; // 10分
+        const PASSING_SCORE = 710; // 第1級の合格基準純字数
+        
+        // 問題文 (※ここに実際の検定問題を入れます。改行はそのまま反映されます)
+        const CORRECT_TEXT = `企業が人材確保のために、魅力ある職場づくりをすることは重要といえる。その参考となる指標の一つに、従業員満足度 (ES) がある。これは、給与や役職といった待遇に加え、職場環境や仕事のやりがいなどの要素も含めて調査される。その方法は、アンケートによるものが一般的だ。事前に従業員へ意図を伝えた上で定期的に実施し、改善を繰り返していくことが望ましい。  このESを高めるため、企業が自社の本質的な課題を乗り越えられるように、現状に適している施策を打つことが肝要だ。ある会社では、一人ひとりが自分らしく働けるように、従業員が勤務時間を決められる制度を導入した。さらに、兼業の自由化や子連れ出勤の支援なども行っている。その結果、多様で柔軟なワークスタイルが可能になり、低い離職率で推移し続けている。  以前の企業では、顧客を最優先にする考え方が一般的であった。ビジネスでは顧客を大切にするのは当然だが、過剰にサービスをするために、従業員が自分の時間を犠牲にしてまで働くことが増加した。社内でこのような状態が顕在化するようになると、仕事に対するモチベーションが下がり、品質や精度の低下へとつながった。そして、改善のために労働環境を整備する必要が生じた。  近年は、従業員が仕事に満足することにより、顧客に対して質の高い接客ができるという考え方が主流だ。そのため、企業は顧客を大切にしながらも、まずはESを意識して取り組むことで良い結果を得やすい。企業がイメージアップを図ることができれば、離職率の低下や新規雇用の獲得へとつながり、生産性も向上するだろう。今後より多くの企業で、従業員が満足できる環境が整えられていくことを願っている。  `; 
+
+        let timeLeft = TIME_LIMIT;
+        let timerInterval;
+
+        const timerDisplay = document.getElementById('timer');
+        const startBtn = document.getElementById('start-btn');
+        const questionArea = document.getElementById('question-area');
+        const inputArea = document.getElementById('input-area');
+        const resultBox = document.getElementById('result-box');
+        const resultText = document.getElementById('result-text');
+
+        questionArea.value = CORRECT_TEXT;
+
+        startBtn.addEventListener('click', () => {
+            timeLeft = TIME_LIMIT;
+            inputArea.value = "";
+            resultBox.style.display = "none";
+            inputArea.disabled = false;
+            inputArea.focus();
+            startBtn.disabled = true;
+
+            updateTimerDisplay();
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                if (timeLeft <= 0) endTest();
+            }, 1000);
+        });
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            timerDisplay.textContent = String(minutes).padStart(2, '0') + ":" + String(seconds).padStart(2, '0');
+        }
+
+        function endTest() {
+            clearInterval(timerInterval);
+            inputArea.disabled = true;
+            startBtn.disabled = false;
+            startBtn.textContent = "リトライ";
+            calculateResults();
+        }
+
+        // 2つの文字列間の編集距離（エラー数）を計算するアルゴリズム
+        function getEditDistance(correct, user) {
+            const dp = Array(correct.length + 1).fill(null).map(() => Array(user.length + 1).fill(0));
+            for (let i = 0; i <= correct.length; i++) dp[i][0] = i; // 脱字
+            for (let j = 0; j <= user.length; j++) dp[0][j] = j; // 余分字
+
+            for (let i = 1; i <= correct.length; i++) {
+                for (let j = 1; j <= user.length; j++) {
+                    const cost = correct[i - 1] === user[j - 1] ? 0 : 1;
+                    dp[i][j] = Math.min(
+                        dp[i - 1][j] + 1,      // 削除（脱字エラー相当）
+                        dp[i][j - 1] + 1,      // 挿入（余分字エラー相当）
+                        dp[i - 1][j - 1] + cost // 置換（誤字エラー相当）
+                    );
+                }
+            }
+            return dp[correct.length][user.length];
+        }
+
+        function calculateResults() {
+            const userText = inputArea.value;
+            if (userText.length === 0) {
+                showResult(0, 0, 0);
+                return;
+            }
+
+            // PDFルール：答案の最後の文字に対応する問題の字数を「総字数」とする
+            // ユーザー入力の長さ周辺で、最もエラーが少なくなる箇所を「到達点（総字数）」と推定する
+            let minErrors = Infinity;
+            let bestTotalChars = 0;
+
+            const searchStart = Math.max(0, userText.length - 30);
+            const searchEnd = Math.min(CORRECT_TEXT.length, userText.length + 30);
+
+            for (let i = searchStart; i <= searchEnd; i++) {
+                const targetSubstring = CORRECT_TEXT.substring(0, i);
+                const errors = getEditDistance(targetSubstring, userText);
+                if (errors < minErrors) {
+                    minErrors = errors;
+                    bestTotalChars = i;
+                }
+            }
+
+            // PDFルール：総字数 - エラー数 = 純字数
+            const netChars = bestTotalChars - minErrors;
+            showResult(bestTotalChars, minErrors, netChars);
+        }
+
+        function showResult(total, errors, net) {
+            // 第1級の合格基準は純字数710字以上
+            const isPassed = net >= PASSING_SCORE;
+            const passText = isPassed ? `<span class="pass">合格</span>` : `<span class="fail">不合格</span>`;
+
+            resultText.innerHTML = `
+                ・総字数： <strong>${total}</strong> 字<br>
+                ・エラー数： <strong>${errors}</strong><br>
+                <hr>
+                ・純字数： <span class="highlight">${net}</span> 字<br>
+                ・第1級判定（700字以上）： ${passText}
+            `;
+            resultBox.style.display = "block";
+        }
+    </script>
+</body>
+</html>

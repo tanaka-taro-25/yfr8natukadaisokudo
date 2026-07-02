@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>タイピング速度１回目</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; margin: 0; background-color: #f4f6f9; }
+        #header { display: flex; justify-content: center; align-items: center; gap: 20px; padding: 15px; background-color: #2c3e50; color: white; font-size: 24px; font-weight: bold; }
+        button { padding: 10px 20px; font-size: 18px; cursor: pointer; background-color: #e74c3c; color: white; border: none; border-radius: 5px; }
+        button:hover { background-color: #c0392b; }
+        button:disabled { background-color: #7f8c8d; cursor: not-allowed; }
+        #main { display: flex; flex: 1; padding: 20px; gap: 20px; justify-content: center; }
+        .pane { display: flex; flex-direction: column; align-items: center; width: 50%; max-width: 600px; }
+        .pane-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; color: #34495e; }
+        
+        textarea {
+            font-family: 'MS Gothic', 'Hiragino Kaku Gothic ProN', monospace;
+            font-size: 16px; padding: 10px; resize: none; border: 2px solid #bdc3c7; border-radius: 5px; outline: none; line-height: 1.5; box-sizing: border-box;
+        }
+        #question-area { background-color: #ffffff; color: #333; border-color: #95a5a6; }
+        #input-area:focus { border-color: #3498db; }
+        #input-area:disabled { background-color: #ecf0f1; }
+        
+        #result-box { display: none; margin-top: 20px; padding: 20px; background-color: #fff; border: 2px solid #27ae60; border-radius: 8px; text-align: center; width: 100%; box-sizing: border-box; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .result-title { font-size: 20px; color: #27ae60; font-weight: bold; margin-bottom: 15px; }
+        .result-detail { font-size: 18px; line-height: 1.8; text-align: left; display: inline-block;}
+        .highlight { font-weight: bold; color: #e74c3c; font-size: 22px; }
+        .pass { color: #27ae60; font-weight: bold; }
+        .fail { color: #e74c3c; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="header">
+        <span>残り時間: <span id="timer">10:00</span></span>
+        <button id="start-btn">スタート</button>
+    </div>
+
+    <div id="main">
+        <div class="pane">
+            <div class="pane-title">【 問題文 】</div>
+            <textarea id="question-area" cols="60" rows="30" readonly></textarea>
+        </div>
+
+        <div class="pane">
+            <div class="pane-title">【 入力スペース 】</div>
+            <textarea id="input-area" cols="60" rows="30" placeholder="スタートボタンを押して入力を開始..." disabled></textarea>
+            
+            <div id="result-box">
+                <div class="result-title">タイムアップ！ 審査結果</div>
+                <div class="result-detail" id="result-text"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const TIME_LIMIT = 10 * 60; // 10分
+        const PASSING_SCORE = 710; // 第1級の合格基準純字数
+        
+        // 問題文 (※ここに実際の検定問題を入れます。改行はそのまま反映されます)
+        const CORRECT_TEXT = `近年、コンテナを利用したホテルが注目されている。部屋が一棟ずつ独立した構造で隣室に物音が響きにくく、プライバシーを確保できるのが特徴である。建築用コンテナを利用することによって工場で部材を組んだものを運び込めるため、現地での施工期間が短く済む。それにより、費用を抑えて宿泊料金を低価格に設定したところ、ビジネスや観光での利用が増加した。
+ある企業では、車で移動する宿泊客をターゲットとし、工業団地の近くや幹線道路沿いなどに出店している。駐車場が部屋の目の前にあり、利用者は荷物を直接運び入れることができて便利だ。食事は冷凍の弁当が提供され、部屋に設けられた電子レンジを使って好きな時間に食べられる。また、こだわりの寝具によって快適に休むことができる。
+複数のコンテナを組み合わせて、外観をおしゃれに仕上げたり秘密基地のような非日常を演出したりする施設もある。写真映えを意識したことによって、宿泊自体を旅行の目的として訪れ、画像や動画をSNSで発信する人も増えている。さらに、通常はホテルとして営業しているが、災害の際はコンテナを移動させ、仮設住宅や医療用施設として使用する企業もある。自治体が行う防災訓練にも協力し、活用の方法を住民に紹介しているという。
+最近では、駅近くに建設し、全部屋から列車を眺められるホテルを出店する企業も出てきた。鉄道を間近で楽しむ希少な体験ができることから、マニアや海外からの旅行者の需要を取り込もうとしている。このようにコンテナ型ホテルは、工夫をしながら各地に増えてきている。ビジネスや観光で利用されるだけではなく、災害対応の役割を担うインフラとして、普及することを期待したい。`; 
+
+        let timeLeft = TIME_LIMIT;
+        let timerInterval;
+
+        const timerDisplay = document.getElementById('timer');
+        const startBtn = document.getElementById('start-btn');
+        const questionArea = document.getElementById('question-area');
+        const inputArea = document.getElementById('input-area');
+        const resultBox = document.getElementById('result-box');
+        const resultText = document.getElementById('result-text');
+
+        questionArea.value = CORRECT_TEXT;
+
+        startBtn.addEventListener('click', () => {
+            timeLeft = TIME_LIMIT;
+            inputArea.value = "";
+            resultBox.style.display = "none";
+            inputArea.disabled = false;
+            inputArea.focus();
+            startBtn.disabled = true;
+
+            updateTimerDisplay();
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                if (timeLeft <= 0) endTest();
+            }, 1000);
+        });
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            timerDisplay.textContent = String(minutes).padStart(2, '0') + ":" + String(seconds).padStart(2, '0');
+        }
+
+        function endTest() {
+            clearInterval(timerInterval);
+            inputArea.disabled = true;
+            startBtn.disabled = false;
+            startBtn.textContent = "リトライ";
+            calculateResults();
+        }
+
+        // 2つの文字列間の編集距離（エラー数）を計算するアルゴリズム
+        function getEditDistance(correct, user) {
+            const dp = Array(correct.length + 1).fill(null).map(() => Array(user.length + 1).fill(0));
+            for (let i = 0; i <= correct.length; i++) dp[i][0] = i; // 脱字
+            for (let j = 0; j <= user.length; j++) dp[0][j] = j; // 余分字
+
+            for (let i = 1; i <= correct.length; i++) {
+                for (let j = 1; j <= user.length; j++) {
+                    const cost = correct[i - 1] === user[j - 1] ? 0 : 1;
+                    dp[i][j] = Math.min(
+                        dp[i - 1][j] + 1,      // 削除（脱字エラー相当）
+                        dp[i][j - 1] + 1,      // 挿入（余分字エラー相当）
+                        dp[i - 1][j - 1] + cost // 置換（誤字エラー相当）
+                    );
+                }
+            }
+            return dp[correct.length][user.length];
+        }
+
+        function calculateResults() {
+            const userText = inputArea.value;
+            if (userText.length === 0) {
+                showResult(0, 0, 0);
+                return;
+            }
+
+            // PDFルール：答案の最後の文字に対応する問題の字数を「総字数」とする
+            // ユーザー入力の長さ周辺で、最もエラーが少なくなる箇所を「到達点（総字数）」と推定する
+            let minErrors = Infinity;
+            let bestTotalChars = 0;
+
+            const searchStart = Math.max(0, userText.length - 30);
+            const searchEnd = Math.min(CORRECT_TEXT.length, userText.length + 30);
+
+            for (let i = searchStart; i <= searchEnd; i++) {
+                const targetSubstring = CORRECT_TEXT.substring(0, i);
+                const errors = getEditDistance(targetSubstring, userText);
+                if (errors < minErrors) {
+                    minErrors = errors;
+                    bestTotalChars = i;
+                }
+            }
+
+            // PDFルール：総字数 - エラー数 = 純字数
+            const netChars = bestTotalChars - minErrors;
+            showResult(bestTotalChars, minErrors, netChars);
+        }
+
+        function showResult(total, errors, net) {
+            // 第1級の合格基準は純字数710字以上
+            const isPassed = net >= PASSING_SCORE;
+            const passText = isPassed ? `<span class="pass">合格</span>` : `<span class="fail">不合格</span>`;
+
+            resultText.innerHTML = `
+                ・総字数： <strong>${total}</strong> 字<br>
+                ・エラー数： <strong>${errors}</strong><br>
+                <hr>
+                ・純字数： <span class="highlight">${net}</span> 字<br>
+                ・第1級判定（700字以上）： ${passText}
+            `;
+            resultBox.style.display = "block";
+        }
+    </script>
+</body>
+</html>
